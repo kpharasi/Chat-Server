@@ -1,9 +1,10 @@
 package main
 
 import (
-	"log"
+	"os"
 	"net/http"
 	"github.com/gorilla/websocket"
+	log "github.com/sirupsen/logrus"
 )
 
 // connected clients
@@ -14,6 +15,12 @@ var broadcast = make(chan Message)
 
 // Configure the upgrader
 var upgrader = websocket.Upgrader{}
+
+func init() {
+	log.SetFormatter(&log.JSONFormatter{})
+	log.SetOutput(os.Stdout)
+	log.SetLevel(log.InfoLevel)
+}
 
 // Define our message object
 type Message struct {
@@ -38,7 +45,9 @@ func main() {
 	log.Println("HTTP server started on :8000")
 	err :=http.ListenAndServe(":8000",nil)
 	if err !=nil {
-		log.Fatal("ListenAndServer: ", err)
+		log.WithFields(log.Fields{
+			"Error":    err,
+		}).Fatal("Error in ListenAndServer!")
 	}
 }
 
@@ -46,7 +55,9 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	// Upgrading Get request to Web Socket
 	ws, err := upgrader.Upgrade(w,r, nil)
 	if err != nil {
-		log.Fatal(err)
+		log.WithFields(log.Fields{
+			"Error":    err,
+		}).Fatal("Error in upgrading to WebSockets!")
 	}
 
 	defer ws.Close()
@@ -59,7 +70,9 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		// Read in a new message as JSON and map to a message object
 		err := ws.ReadJSON(&msg)
 		if err != nil {
-			log.Printf("error %v", err)
+			log.WithFields(log.Fields{
+				"Error":    err,
+			}).Info("Error while reading JSON!")
 			delete(clients,ws)
 			break
 		}
@@ -77,7 +90,9 @@ func handleMessages() {
 			for client := range clients {
 					err := client.WriteJSON(msg)
 					if err != nil {
-							log.Printf("error: %v", err)
+							log.WithFields(log.Fields{
+								"Error":    err,
+							}).Info("Error while writing JSON!")
 							client.Close()
 							delete(clients, client)
 					}
